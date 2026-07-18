@@ -1,0 +1,93 @@
+name: '🚀 Release Plugin'
+
+on:
+  release:
+    types: [ released ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Create plugin zip
+        run: |
+          mkdir -p staging
+          cp bin/Release/net9.0/JellyfinPRRating.dll staging/
+          cp meta.json staging/
+          cd staging
+          zip -r ../JellyfinPRRating.zip .
+
+      - name: Compute checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(md5sum JellyfinPRRating.zip | awk '{print $1}')
+          echo "md5=$CHECKSUM" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            JellyfinPRRating.zip \
+            --clobber
+
+      - name: Generate manifest for GitHub Pages
+        if: github.event_name == 'release'
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          CHECKSUM="${{ steps.checksum.outputs.md5 }}"
+          TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          TAG="${{ github.event.release.tag_name }}"
+
+          mkdir -p pages
+
+          python3 -c "
+          import json, sys
+          manifest = [
+            {
+              'guid': '0842582a-0242-4b3b-8475-71d3885b42a2',
+              'name': 'PR Rating',
+              'description': 'Calculates a PR age rating for movies and TV shows and applies PR-## tags, with a Vault tag for top-tier items.',
+              'overview': 'PR Rating - parental age rating tags for Jellyfin',
+              'owner': 'GhostPratt',
+              'category': 'Metadata',
+              'imageUrl': '',
+              'versions': [
+                {
+                  'version': '${VERSION}',
+                  'changelog': 'See release notes on GitHub',
+                  'targetAbi': '10.11.0.0',
+                  'sourceUrl': 'https://github.com/GhostPratt/JellyfinPRRating/releases/download/${TAG}/JellyfinPRRating.zip',
+                  'checksum': '${CHECKSUM}',
+                  'timestamp': '${TIMESTAMP}'
+                }
+              ]
+            }
+          ]
+          with open('pages/manifest.json', 'w') as f:
+            json.dump(manifest, f, indent=2)
+          "
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'release'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pages
