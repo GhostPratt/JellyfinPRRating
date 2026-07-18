@@ -1,0 +1,21 @@
+[
+  {
+    "guid": "0842582a-0242-4b3b-8475-71d3885b42a2",
+    "name": "PR Rating",
+    "description": "Calculates a PR age rating for movies and TV shows and applies PR-## tags, with a Vault tag for top-tier items.",
+    "overview": "PR Rating - parental age rating tags for Jellyfin",
+    "owner": "GhostPratt",
+    "category": "Metadata",
+    "imageUrl": "",
+    "versions": [
+      {
+        "version": "0.0.1.0",
+        "changelog": "Initial release",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/GhostPratt/JellyfinPRRating/releases/download/0.0.1/JellyfinPRRating.zip",
+        "checksum": "7e45446dc89bccafb65f0e0287c3b514",
+        "timestamp": "2026-07-18T00:00:00Z"
+      }
+    ]
+  }
+]

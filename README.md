@@ -24,7 +24,7 @@ Add this plugin repository in the Jellyfin dashboard
 (**Dashboard → Plugins → Repositories**):
 
 ```
-https://ghostpratt.github.io/JellyfinPRRating/manifest.json
+https://raw.githubusercontent.com/GhostPratt/JellyfinPRRating/master/manifest.json
 ```
 
 Then install **PR Rating** from the plugin catalog and restart Jellyfin.
