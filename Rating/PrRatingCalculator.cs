@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities;
@@ -16,6 +18,8 @@ namespace JellyfinPRRating.Rating;
 /// </summary>
 public class PrRatingCalculator : IPrRatingCalculator
 {
+    private static readonly Regex _trailingYearRegex = new(@"^(.*?)\s*\((\d{4})\)\s*$", RegexOptions.Compiled);
+
     private static readonly string[] _positiveGrades = ["A", "A+", "A-"];
     private static readonly string[] _negativeGrades = ["C-", "D+", "D", "D-", "F+", "F", "F-"];
 
@@ -57,6 +61,15 @@ public class PrRatingCalculator : IPrRatingCalculator
         if (string.IsNullOrWhiteSpace(title))
         {
             return null;
+        }
+
+        // Names taken from filenames often carry the year, e.g. "Corsage (2022)".
+        // Split it off so the sites are searched with the clean title.
+        var yearMatch = _trailingYearRegex.Match(title);
+        if (yearMatch.Success && yearMatch.Groups[1].Value.Length > 0)
+        {
+            title = yearMatch.Groups[1].Value;
+            year ??= int.Parse(yearMatch.Groups[2].Value, CultureInfo.InvariantCulture);
         }
 
         return item switch
