@@ -12,7 +12,7 @@ namespace JellyfinPRRating.Rating;
 /// <summary>
 /// Scrapes Common Sense Media ratings (ported from PlexRating's commonsense.py).
 /// </summary>
-public class CommonSenseScraper
+public class CommonSenseScraper : ScraperBase
 {
     private const string Base = "https://www.commonsensemedia.org";
 
@@ -34,18 +34,14 @@ public class CommonSenseScraper
     private static readonly Regex _kidAgeRegex = new(@"age\s+(\d+)\+.*?kid\s+review", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
     private static readonly Regex _datePublishedRegex = new("\"datePublished\"\\s*:\\s*\"(\\d{4})", RegexOptions.Compiled);
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<CommonSenseScraper> _logger;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="CommonSenseScraper"/> class.
     /// </summary>
     /// <param name="httpClientFactory">The HTTP client factory.</param>
     /// <param name="logger">The logger.</param>
     public CommonSenseScraper(IHttpClientFactory httpClientFactory, ILogger<CommonSenseScraper> logger)
+        : base(httpClientFactory, logger)
     {
-        _httpClientFactory = httpClientFactory;
-        _logger = logger;
     }
 
     /// <summary>
@@ -58,17 +54,16 @@ public class CommonSenseScraper
     /// <returns>The scraped data, or <c>null</c> when not found.</returns>
     public async Task<CommonSenseData?> ScrapeAsync(string title, int? year, bool isTv, CancellationToken cancellationToken)
     {
-        using var client = _httpClientFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(15);
+        using var client = CreateClient();
 
         var url = await FindReviewUrlAsync(client, title, year, isTv, cancellationToken).ConfigureAwait(false);
         if (url is null)
         {
-            _logger.LogInformation("Common Sense Media: '{Title}' not found", title);
+            Logger.LogInformation("Common Sense Media: '{Title}' not found", title);
             return null;
         }
 
-        var html = await GetStringAsync(client, url, cancellationToken).ConfigureAwait(false);
+        var html = await GetPageAsync(client, url, cancellationToken).ConfigureAwait(false);
         if (html is null)
         {
             return null;
@@ -101,7 +96,7 @@ public class CommonSenseScraper
 
         if (siteAge is null or 0)
         {
-            _logger.LogInformation("Common Sense Media: could not parse site age for '{Title}'", title);
+            Logger.LogInformation("Common Sense Media: could not parse site age for '{Title}'", title);
             return null;
         }
 
@@ -138,7 +133,7 @@ public class CommonSenseScraper
         foreach (var s in slugsToTry)
         {
             var url = $"{Base}/{path}/{s}";
-            var (finalUrl, html) = await GetWithFinalUrlAsync(client, url, cancellationToken).ConfigureAwait(false);
+            var (finalUrl, html) = await GetPageWithFinalUrlAsync(client, url, cancellationToken).ConfigureAwait(false);
             if (html is null || finalUrl is null || !finalUrl.Contains($"/{path}/", StringComparison.Ordinal))
             {
                 continue;
@@ -164,7 +159,7 @@ public class CommonSenseScraper
         if (year is not null)
         {
             var url = $"{Base}/{path}/{slug}";
-            var (finalUrl, html) = await GetWithFinalUrlAsync(client, url, cancellationToken).ConfigureAwait(false);
+            var (finalUrl, html) = await GetPageWithFinalUrlAsync(client, url, cancellationToken).ConfigureAwait(false);
             if (html is not null && finalUrl is not null && finalUrl.Contains($"/{path}/", StringComparison.Ordinal))
             {
                 return finalUrl;
@@ -172,34 +167,5 @@ public class CommonSenseScraper
         }
 
         return null;
-    }
-
-    private async Task<(string? FinalUrl, string? Html)> GetWithFinalUrlAsync(HttpClient client, string url, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            ScraperHelpers.AddBrowserHeaders(request);
-            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                return (null, null);
-            }
-
-            var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? url;
-            var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return (finalUrl, html);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogDebug(ex, "Common Sense Media request failed for {Url}", url);
-            return (null, null);
-        }
-    }
-
-    private async Task<string?> GetStringAsync(HttpClient client, string url, CancellationToken cancellationToken)
-    {
-        var (_, html) = await GetWithFinalUrlAsync(client, url, cancellationToken).ConfigureAwait(false);
-        return html;
     }
 }

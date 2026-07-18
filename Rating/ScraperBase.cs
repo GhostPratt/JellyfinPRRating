@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,6 +43,9 @@ public abstract class ScraperBase
 
     /// <summary>
     /// Fetches a page with browser-like headers, returning <c>null</c> on any failure.
+    /// Transient failures (network errors, timeouts, HTTP 5xx/429) are retried once;
+    /// non-404 failures are logged as warnings so a blocked or unreachable source is
+    /// distinguishable from a missing review.
     /// </summary>
     /// <param name="client">The HTTP client.</param>
     /// <param name="url">The URL to fetch.</param>
@@ -49,23 +53,73 @@ public abstract class ScraperBase
     /// <returns>The page HTML, or <c>null</c>.</returns>
     protected async Task<string?> GetPageAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {
+        var (_, html) = await GetPageWithFinalUrlAsync(client, url, cancellationToken).ConfigureAwait(false);
+        return html;
+    }
+
+    /// <summary>
+    /// Fetches a page like <see cref="GetPageAsync"/>, additionally returning the
+    /// final URL after redirects.
+    /// </summary>
+    /// <param name="client">The HTTP client.</param>
+    /// <param name="url">The URL to fetch.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The final URL and page HTML, or <c>null</c>s.</returns>
+    protected async Task<(string? FinalUrl, string? Html)> GetPageWithFinalUrlAsync(HttpClient client, string url, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(client);
-        try
+
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            ScraperHelpers.AddBrowserHeaders(request);
-            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            if (attempt > 0)
             {
-                return null;
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
             }
 
-            return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                ScraperHelpers.AddBrowserHeaders(request);
+                using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? url;
+                    var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                    return (finalUrl, html);
+                }
+
+                var status = (int)response.StatusCode;
+                if ((status >= 500 || status == 429) && attempt == 0)
+                {
+                    Logger.LogDebug("HTTP {Status} from {Url}; retrying", status, url);
+                    continue;
+                }
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Logger.LogDebug("HTTP 404 from {Url}", url);
+                }
+                else
+                {
+                    Logger.LogWarning("HTTP {Status} from {Url}; the source may be blocking requests", status, url);
+                }
+
+                return (null, null);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                if (attempt == 0)
+                {
+                    Logger.LogDebug(ex, "Request failed for {Url}; retrying", url);
+                    continue;
+                }
+
+                Logger.LogWarning(ex, "Request failed for {Url} after retry", url);
+                return (null, null);
+            }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
-        {
-            Logger.LogDebug(ex, "Scraper request failed for {Url}", url);
-            return null;
-        }
+
+        return (null, null);
     }
 }
