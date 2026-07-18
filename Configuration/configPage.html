@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>PR Rating</title>
+</head>
+<body>
+    <div id="PRRatingConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="PRRatingConfigForm">
+                    <div class="inputContainer">
+                        <input is="emby-input" id="txtTagPrefix" type="text" label="Rating tag prefix" />
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" id="txtVaultTag" type="text" label="Vault tag name" />
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" id="txtVaultThreshold" type="number" min="1" label="Vault threshold (score at or above)" />
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" id="txtMaxTagRating" type="number" min="1" label="Maximum rating tag value" />
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            var PRRatingConfig = {
+                pluginUniqueId: '0842582a-0242-4b3b-8475-71d3885b42a2'
+            };
+
+            document.querySelector('#PRRatingConfigPage')
+                .addEventListener('pageshow', function() {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(PRRatingConfig.pluginUniqueId).then(function (config) {
+                        document.querySelector('#txtTagPrefix').value = config.TagPrefix || 'PR-';
+                        document.querySelector('#txtVaultTag').value = config.VaultTag || 'Vault';
+                        document.querySelector('#txtVaultThreshold').value = config.VaultThreshold || 19;
+                        document.querySelector('#txtMaxTagRating').value = config.MaxTagRating || 18;
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector('#PRRatingConfigForm')
+                .addEventListener('submit', function(e) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(PRRatingConfig.pluginUniqueId).then(function (config) {
+                        config.TagPrefix = document.querySelector('#txtTagPrefix').value || 'PR-';
+                        config.VaultTag = document.querySelector('#txtVaultTag').value || 'Vault';
+                        config.VaultThreshold = parseInt(document.querySelector('#txtVaultThreshold').value, 10) || 19;
+                        config.MaxTagRating = parseInt(document.querySelector('#txtMaxTagRating').value, 10) || 18;
+                        ApiClient.updatePluginConfiguration(PRRatingConfig.pluginUniqueId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+
+                    e.preventDefault();
+                    return false;
+                });
+        </script>
+    </div>
+</body>
+</html>

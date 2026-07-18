@@ -1,0 +1,16 @@
+---
+name: "PR Rating"
+guid: "0842582a-0242-4b3b-8475-71d3885b42a2"
+version: "0.0.1.0"
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+overview: "PR Rating plugin for Jellyfin"
+description: >
+  Calculates a PR age rating for movies and TV shows and applies PR-## tags,
+  with a Vault tag for top-tier items.
+category: "Metadata"
+owner: "ghost"
+artifacts:
+- "JellyfinPRRating.dll"
+changelog: >
+  Initial release
