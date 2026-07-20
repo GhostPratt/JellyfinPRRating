@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
+using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using JellyfinPRRating.Rating;
@@ -52,12 +54,23 @@ public class HttpDiagnosticTask : IScheduledTask
 
         using (var unnamed = _httpClientFactory.CreateClient())
         {
-            await ProbeAsync("unnamed CreateClient()", unnamed, addHeaders: true, cancellationToken).ConfigureAwait(false);
+            await ProbeAsync("factory unnamed (HTTP/2)", unnamed, addHeaders: true, cancellationToken).ConfigureAwait(false);
         }
 
-        using (var named = _httpClientFactory.CreateClient(NamedClient.Default))
+        // The path the scrapers actually use as of 0.0.6: a plugin-owned handler
+        // pinned to HTTP/1.1. This is what should now return 200 from kids-in-mind.
+        using var http11Handler = new SocketsHttpHandler
         {
-            await ProbeAsync("NamedClient.Default", named, addHeaders: true, cancellationToken).ConfigureAwait(false);
+            AutomaticDecompression = DecompressionMethods.All,
+            SslOptions = { ApplicationProtocols = [SslApplicationProtocol.Http11] },
+        };
+        using (var scraper = new HttpClient(http11Handler, disposeHandler: false)
+        {
+            DefaultRequestVersion = HttpVersion.Version11,
+            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower,
+        })
+        {
+            await ProbeAsync("scraper handler (HTTP/1.1)", scraper, addHeaders: true, cancellationToken).ConfigureAwait(false);
         }
 
         progress.Report(100);
@@ -87,8 +100,8 @@ public class HttpDiagnosticTask : IScheduledTask
 
             using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            var snippet = body.Length > 600 ? body[..600] : body;
-            _logger.LogInformation("PRDIAG [{Label}] {What} status={Status} body={Body}", label, what, (int)resp.StatusCode, snippet.Replace('\n', ' '));
+            var snippet = body.Length > 300 ? body[..300] : body;
+            _logger.LogInformation("PRDIAG [{Label}] {What} status={Status} HTTP/{Version} body={Body}", label, what, (int)resp.StatusCode, resp.Version, snippet.Replace('\n', ' '));
         }
         catch (Exception ex)
         {
