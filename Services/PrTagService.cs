@@ -62,6 +62,14 @@ public class PrTagService
         {
             score = await _calculator.CalculateAsync(item, cancellationToken).ConfigureAwait(false);
         }
+        catch (SourceBlockedException ex)
+        {
+            // A rating source blocked us (HTTP 403). Scoring with it silently missing
+            // would inflate the rating, so skip this item entirely and leave any
+            // existing tags in place until the source is reachable again.
+            _logger.LogWarning("Skipping {Item}: rating source blocked the request ({Url}); leaving tags unchanged", item.Name, ex.Url);
+            return false;
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "PR rating calculation failed for {Item}", item.Name);

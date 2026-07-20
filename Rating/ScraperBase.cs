@@ -96,6 +96,15 @@ public abstract class ScraperBase
                     continue;
                 }
 
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    // A 403 means the source is blocking us, not that the review is
+                    // missing. Signal that distinctly so the calculator aborts rather
+                    // than scoring with this source silently absent.
+                    Logger.LogWarning("HTTP 403 from {Url}; the source is blocking requests", url);
+                    throw new SourceBlockedException($"HTTP 403 from {url}; the source is blocking requests", url);
+                }
+
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
                     Logger.LogDebug("HTTP 404 from {Url}", url);
