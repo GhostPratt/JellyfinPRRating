@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 
@@ -20,6 +21,15 @@ public static class ScraperHelpers
     public static void AddBrowserHeaders(HttpRequestMessage request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // Force HTTP/1.1: Jellyfin's HttpClient defaults to HTTP/2, and .NET's HTTP/2
+        // fingerprint does not match a real browser's, so Cloudflare-fronted sources
+        // (kids-in-mind, parentpreviews) 403 a "Chrome" User-Agent arriving over HTTP/2.
+        // Over HTTP/1.1 the same request succeeds. RequestVersionOrLower keeps it from
+        // upgrading regardless of the client's default version.
+        request.Version = HttpVersion.Version11;
+        request.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+
         request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
         request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
         request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9");
