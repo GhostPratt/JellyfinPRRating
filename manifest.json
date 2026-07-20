@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "0.0.5.0",
+        "changelog": "See release notes on GitHub",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/GhostPratt/JellyfinPRRating/releases/download/0.0.5/JellyfinPRRating.zip",
+        "checksum": "73f09b187d6806547e9e8e7e259a5c3f",
+        "timestamp": "2026-07-20T19:46:40Z"
+      },
+      {
         "version": "0.0.4.0",
         "changelog": "See release notes on GitHub",
         "targetAbi": "10.11.0.0",
