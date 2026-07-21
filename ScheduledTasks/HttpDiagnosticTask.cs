@@ -82,13 +82,13 @@ public class HttpDiagnosticTask : IScheduledTask
         _logger.LogInformation("PRDIAG [{Label}] === begin ===", label);
 
         await OneAsync(label, client, "egress-IP", "https://api.ipify.org", addHeaders, ct).ConfigureAwait(false);
-        await OneAsync(label, client, "echo-headers", "https://postman-echo.com/headers", addHeaders, ct).ConfigureAwait(false);
+        await OneAsync(label, client, "fingerprint", "https://tls.peet.ws/api/all", addHeaders, ct, snippetLen: 1600).ConfigureAwait(false);
         await OneAsync(label, client, "kids-in-mind", "https://kids-in-mind.com/g/goosebumps.htm", addHeaders, ct).ConfigureAwait(false);
 
         _logger.LogInformation("PRDIAG [{Label}] === end ===", label);
     }
 
-    private async Task OneAsync(string label, HttpClient client, string what, string url, bool addHeaders, CancellationToken ct)
+    private async Task OneAsync(string label, HttpClient client, string what, string url, bool addHeaders, CancellationToken ct, int snippetLen = 300)
     {
         try
         {
@@ -100,7 +100,7 @@ public class HttpDiagnosticTask : IScheduledTask
 
             using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            var snippet = body.Length > 300 ? body[..300] : body;
+            var snippet = body.Length > snippetLen ? body[..snippetLen] : body;
             _logger.LogInformation("PRDIAG [{Label}] {What} status={Status} HTTP/{Version} body={Body}", label, what, (int)resp.StatusCode, resp.Version, snippet.Replace('\n', ' '));
         }
         catch (Exception ex)
