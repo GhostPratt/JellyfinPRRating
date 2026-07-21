@@ -82,7 +82,7 @@ public class HttpDiagnosticTask : IScheduledTask
         _logger.LogInformation("PRDIAG [{Label}] === begin ===", label);
 
         await OneAsync(label, client, "egress-IP", "https://api.ipify.org", addHeaders, ct).ConfigureAwait(false);
-        await OneAsync(label, client, "fingerprint", "https://tls.peet.ws/api/all", addHeaders, ct, snippetLen: 1600).ConfigureAwait(false);
+        await OneAsync(label, client, "fingerprint", "https://tls.peet.ws/api/all", addHeaders, ct, snippetLen: 4200).ConfigureAwait(false);
         await OneAsync(label, client, "kids-in-mind", "https://kids-in-mind.com/g/goosebumps.htm", addHeaders, ct).ConfigureAwait(false);
 
         _logger.LogInformation("PRDIAG [{Label}] === end ===", label);
@@ -100,8 +100,22 @@ public class HttpDiagnosticTask : IScheduledTask
 
             using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            var snippet = body.Length > snippetLen ? body[..snippetLen] : body;
-            _logger.LogInformation("PRDIAG [{Label}] {What} status={Status} HTTP/{Version} body={Body}", label, what, (int)resp.StatusCode, resp.Version, snippet.Replace('\n', ' '));
+
+            // For the fingerprint endpoint, log the wire header list + ja4 specifically
+            // (the TLS section is large and would otherwise push them past the snippet).
+            var text = body.Replace('\n', ' ');
+            if (what == "fingerprint")
+            {
+                var hi = text.IndexOf("\"headers\"", StringComparison.Ordinal);
+                var ji = text.IndexOf("\"ja4\"", StringComparison.Ordinal);
+                var headers = hi >= 0 ? text.Substring(hi, Math.Min(500, text.Length - hi)) : "(no headers)";
+                var ja4 = ji >= 0 ? text.Substring(ji, Math.Min(70, text.Length - ji)) : "(no ja4)";
+                _logger.LogInformation("PRDIAG [{Label}] fingerprint status={Status} {Ja4} wire={Headers}", label, (int)resp.StatusCode, ja4, headers);
+                return;
+            }
+
+            var snippet = text.Length > snippetLen ? text[..snippetLen] : text;
+            _logger.LogInformation("PRDIAG [{Label}] {What} status={Status} HTTP/{Version} body={Body}", label, what, (int)resp.StatusCode, resp.Version, snippet);
         }
         catch (Exception ex)
         {
