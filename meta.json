@@ -1,6 +1,6 @@
 {
     "category": "Metadata",
-    "changelog": "Fix Cloudflare 403s: send no ALPN extension in the TLS handshake (kids-in-mind, parentpreviews block the ALPN fingerprint JA4 t13d1212 but allow t13d1211)",
+    "changelog": "Fix Cloudflare 403s from kids-in-mind and parentpreviews: omit the ALPN extension from the TLS handshake (they block JA4 t13d1212, allow t13d1211). Supersedes 0.0.9 which was mis-released without the fix.",
     "description": "Calculates a PR rating for library items and applies PR-## tags, with a Vault tag for top-tier items.",
     "guid": "0842582a-0242-4b3b-8475-71d3885b42a2",
     "imageUrl": "",
@@ -10,5 +10,5 @@
     "status": "Active",
     "targetAbi": "10.11.0.0",
     "timestamp": "2026-07-18T00:00:00Z",
-    "version": "0.0.9.0"
+    "version": "0.0.10.0"
 }
