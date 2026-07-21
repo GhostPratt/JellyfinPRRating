@@ -56,12 +56,13 @@ public class HttpDiagnosticTask : IScheduledTask
             await ProbeAsync("factory unnamed (HTTP/2)", unnamed, addHeaders: true, cancellationToken).ConfigureAwait(false);
         }
 
-        // The path the scrapers actually use as of 0.0.9: a plugin-owned handler with
-        // NO ApplicationProtocols (so no ALPN extension in the ClientHello). This is
-        // what should now return 200 from kids-in-mind (JA4 t13d1211).
+        // The path the scrapers actually use as of 0.0.11: no ApplicationProtocols and
+        // AllowTlsResume=false, so every connection is a full handshake with no
+        // pre_shared_key. This should now return 200 from kids-in-mind (JA4 t13d1211).
         using var scraperHandler = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
+            SslOptions = { AllowTlsResume = false },
         };
         using (var scraper = new HttpClient(scraperHandler, disposeHandler: false)
         {
