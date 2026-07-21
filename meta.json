@@ -1,6 +1,6 @@
 {
     "category": "Metadata",
-    "changelog": "Fix Cloudflare 403s: disable TLS session resumption (AllowTlsResume=false). kids-in-mind and parentpreviews block resumed TLS sessions (pre_shared_key, JA4 t13d1212); full handshakes are allowed. Root cause proven on-server.",
+    "changelog": "Fix Cloudflare 403s from kids-in-mind and parentpreviews: disable TLS session resumption (AllowTlsResume=false); those sites block resumed sessions. Supersedes 0.0.11 which was mis-released without the fix.",
     "description": "Calculates a PR rating for library items and applies PR-## tags, with a Vault tag for top-tier items.",
     "guid": "0842582a-0242-4b3b-8475-71d3885b42a2",
     "imageUrl": "",
@@ -10,5 +10,5 @@
     "status": "Active",
     "targetAbi": "10.11.0.0",
     "timestamp": "2026-07-18T00:00:00Z",
-    "version": "0.0.11.0"
+    "version": "0.0.12.0"
 }
