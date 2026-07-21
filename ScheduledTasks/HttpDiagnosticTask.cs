@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using JellyfinPRRating.Rating;
@@ -57,20 +56,20 @@ public class HttpDiagnosticTask : IScheduledTask
             await ProbeAsync("factory unnamed (HTTP/2)", unnamed, addHeaders: true, cancellationToken).ConfigureAwait(false);
         }
 
-        // The path the scrapers actually use as of 0.0.6: a plugin-owned handler
-        // pinned to HTTP/1.1. This is what should now return 200 from kids-in-mind.
-        using var http11Handler = new SocketsHttpHandler
+        // The path the scrapers actually use as of 0.0.9: a plugin-owned handler with
+        // NO ApplicationProtocols (so no ALPN extension in the ClientHello). This is
+        // what should now return 200 from kids-in-mind (JA4 t13d1211).
+        using var scraperHandler = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
-            SslOptions = { ApplicationProtocols = [SslApplicationProtocol.Http11] },
         };
-        using (var scraper = new HttpClient(http11Handler, disposeHandler: false)
+        using (var scraper = new HttpClient(scraperHandler, disposeHandler: false)
         {
             DefaultRequestVersion = HttpVersion.Version11,
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower,
         })
         {
-            await ProbeAsync("scraper handler (HTTP/1.1)", scraper, addHeaders: true, cancellationToken).ConfigureAwait(false);
+            await ProbeAsync("scraper handler (no ALPN)", scraper, addHeaders: true, cancellationToken).ConfigureAwait(false);
         }
 
         progress.Report(100);

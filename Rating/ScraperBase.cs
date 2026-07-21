@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -13,17 +12,18 @@ namespace JellyfinPRRating.Rating;
 /// </summary>
 public abstract class ScraperBase
 {
-    // A plugin-owned handler that pins ALPN to HTTP/1.1. Jellyfin's IHttpClientFactory
-    // clients negotiate HTTP/2, and .NET's HTTP/2 fingerprint is blocked (403) by the
-    // Cloudflare-fronted sources (kids-in-mind, parentpreviews). A request-level
-    // Version override is not enough because Jellyfin's pipeline forces HTTP/2, so the
-    // scrapers use this dedicated handler instead of the factory. Shared and long-lived
-    // to reuse connections; PooledConnectionLifetime bounds DNS staleness.
+    // A plugin-owned handler used instead of Jellyfin's IHttpClientFactory clients.
+    // The Cloudflare-fronted sources (kids-in-mind, parentpreviews) 403 based on the
+    // TLS ClientHello fingerprint: any request carrying an ALPN extension is blocked
+    // (JA4 t13d1212), while the same request without ALPN is allowed (JA4 t13d1211).
+    // Jellyfin's factory clients send ALPN (they offer h2); this handler deliberately
+    // does NOT set SslOptions.ApplicationProtocols, so no ALPN extension is sent. The
+    // requests are still HTTP/1.1 via the request version set in ScraperHelpers.
+    // Shared and long-lived to reuse connections; PooledConnectionLifetime bounds DNS staleness.
     private static readonly SocketsHttpHandler _handler = new()
     {
         AutomaticDecompression = DecompressionMethods.All,
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-        SslOptions = { ApplicationProtocols = [SslApplicationProtocol.Http11] },
     };
 
     /// <summary>
